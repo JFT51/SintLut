@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Management Applicatie</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+</head>
+<body>
+    <header>
+        <div class="logo-container">
+            <img src="assets/logo.svg" alt="School Logo">
+        </div>
+        <nav>
+            <ul>
+                <li><a href="#" data-section="dashboard-section" class="nav-link active"><i class="fas fa-tachometer-alt icon"></i>Dashboard</a></li>
+                <li><a href="#" data-section="klassen-section" class="nav-link"><i class="fas fa-chalkboard-teacher icon"></i>Klassen</a></li>
+                <li><a href="#" data-section="leerkrachten-section" class="nav-link"><i class="fas fa-user-tie icon"></i>Leerkrachten</a></li>
+                <li><a href="#" data-section="absenties-section" class="nav-link"><i class="fas fa-user-clock icon"></i>Absenties</a></li>
+                <li><a href="#" data-section="weekplanning-section" class="nav-link"><i class="fas fa-calendar-alt icon"></i>Weekplanning</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Dashboard Section -->
+        <section id="dashboard-section" class="content-section active">
+            <h1><i class="fas fa-tachometer-alt icon"></i>Dashboard</h1>
+            <!-- KPIs will go here -->
+            <div class="kpi-container">
+                <div class="kpi-card" id="kpi-total-classes">
+                    <h3>Totaal Aantal Klassen</h3>
+                    <p class="kpi-value">0</p>
+                    <p class="kpi-description">Actieve klassen in de school</p>
+                </div>
+                <div class="kpi-card" id="kpi-total-teachers">
+                    <h3>Totaal Leerkrachten</h3>
+                    <p class="kpi-value">0</p>
+                    <p class="kpi-description">Toegewezen en beschikbare leerkrachten</p>
+                </div>
+                <div class="kpi-card" id="kpi-absences-today">
+                    <h3>Absenties Vandaag</h3>
+                    <p class="kpi-value">0</p>
+                    <p class="kpi-description">Studenten & leerkrachten</p>
+                </div>
+                <div class="kpi-card" id="kpi-schedule-conflicts">
+                    <h3>Rooster Conflicten</h3>
+                    <p class="kpi-value">0</p>
+                    <p class="kpi-description">Mogelijke conflicten in planning</p>
+                </div>
+            </div>
+            <h2>Overzicht Grafieken</h2>
+            <div class="chart-placeholder">Absentie Trend (Laatste 7 Dagen) - Placeholder</div>
+            <div class="chart-placeholder">Klassenbezetting - Placeholder</div>
+        </section>
+
+        <!-- Klassen Section -->
+        <section id="klassen-section" class="content-section">
+            <h1><i class="fas fa-chalkboard-teacher icon"></i>Klassen Beheer</h1>
+            <button id="add-class-btn" class="button"><i class="fas fa-plus icon"></i>Nieuwe Klas Toevoegen</button>
+            <div id="class-list-container" class="card-container">
+                <!-- Class cards will be dynamically inserted here -->
+            </div>
+        </section>
+
+        <!-- Leerkrachten Section -->
+        <section id="leerkrachten-section" class="content-section">
+            <h1><i class="fas fa-user-tie icon"></i>Leerkrachten Beheer</h1>
+            <button id="add-teacher-btn" class="button"><i class="fas fa-user-plus icon"></i>Nieuwe Leerkracht Toevoegen</button>
+            <div id="teacher-list-container" class="card-container">
+                <!-- Teacher cards will be dynamically inserted here -->
+            </div>
+        </section>
+
+        <!-- Absenties Section -->
+        <section id="absenties-section" class="content-section">
+            <h1><i class="fas fa-user-clock icon"></i>Absentie Management</h1>
+            <button id="add-absence-btn" class="button"><i class="fas fa-calendar-plus icon"></i>Nieuwe Absentie Melden</button>
+            <div class="filters mb-1">
+                <!-- Filter options can be added here, e.g., by date, type -->
+            </div>
+            <div id="absence-list-container" class="card-container">
+                <!-- Absence cards will be dynamically inserted here -->
+            </div>
+        </section>
+
+        <!-- Weekplanning Section -->
+        <section id="weekplanning-section" class="content-section">
+            <h1><i class="fas fa-calendar-alt icon"></i>Weekplanning</h1>
+            <div class="form-group">
+                <label for="select-class-schedule">Selecteer Klas voor Rooster:</label>
+                <select id="select-class-schedule">
+                    <!-- Options populated by JS -->
+                </select>
+            </div>
+            <div id="schedule-container">
+                <!-- Weekly schedule grid will be here -->
+                <p class="text-center">Selecteer een klas om het rooster te bekijken of te bewerken.</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modals -->
+    <div id="class-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" data-modal-id="class-modal">&times;</span>
+            <h2 id="class-modal-title">Klas Details</h2>
+            <form id="class-form" class="form-container" style="box-shadow: none; padding:0; margin-top:0;">
+                <input type="hidden" id="class-id">
+                <div class="form-group">
+                    <label for="class-name">Klasnaam:</label>
+                    <input type="text" id="class-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="class-level">Niveau/Graad:</label>
+                    <input type="text" id="class-level" placeholder="bv. 1ste Kleuterklas, 3de Leerjaar" required>
+                </div>
+                <div class="form-group">
+                    <label for="class-section">Sectie:</label>
+                    <select id="class-section" required>
+                        <option value="Kleuteronderwijs">Kleuteronderwijs</option>
+                        <option value="Lagere School">Lagere School</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="class-teacher">Klasleerkracht:</label>
+                    <select id="class-teacher">
+                        <option value="">Geen Leerkracht Toegewezen</option>
+                        <!-- Teacher options populated by JS -->
+                    </select>
+                </div>
+                 <div class="form-group">
+                    <label for="class-students">Aantal Leerlingen:</label>
+                    <input type="number" id="class-students" min="0" value="0">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="button secondary modal-cancel-btn" data-modal-id="class-modal">Annuleren</button>
+                    <button type="submit" class="button">Opslaan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="teacher-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" data-modal-id="teacher-modal">&times;</span>
+            <h2 id="teacher-modal-title">Leerkracht Details</h2>
+            <form id="teacher-form" class="form-container" style="box-shadow: none; padding:0; margin-top:0;">
+                <input type="hidden" id="teacher-id">
+                <div class="form-group">
+                    <label for="teacher-name">Naam:</label>
+                    <input type="text" id="teacher-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="teacher-subject">Hoofdvak/Rol:</label>
+                    <input type="text" id="teacher-subject" placeholder="bv. Klasleerkracht, Turnleerkracht" required>
+                </div>
+                <div class="form-group">
+                    <label for="teacher-email">Email:</label>
+                    <input type="email" id="teacher-email">
+                </div>
+                <div class="form-group">
+                    <label for="teacher-phone">Telefoon:</label>
+                    <input type="tel" id="teacher-phone">
+                </div>
+                <div class="form-actions">
+                     <button type="button" class="button secondary modal-cancel-btn" data-modal-id="teacher-modal">Annuleren</button>
+                    <button type="submit" class="button">Opslaan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="absence-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" data-modal-id="absence-modal">&times;</span>
+            <h2 id="absence-modal-title">Absentie Melden</h2>
+            <form id="absence-form" class="form-container" style="box-shadow: none; padding:0; margin-top:0;">
+                <input type="hidden" id="absence-id">
+                <div class="form-group">
+                    <label for="absence-entity-type">Type:</label>
+                    <select id="absence-entity-type" required>
+                        <option value="student">Leerling</option>
+                        <option value="teacher">Leerkracht</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="absence-entity-id">Naam (Leerling/Leerkracht):</label>
+                    <select id="absence-entity-id" required>
+                        <!-- Options populated by JS based on entity type -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="absence-reason">Reden:</label>
+                    <input type="text" id="absence-reason" required>
+                </div>
+                <div class="form-group">
+                    <label for="absence-start-date">Startdatum:</label>
+                    <input type="date" id="absence-start-date" required>
+                </div>
+                <div class="form-group">
+                    <label for="absence-end-date">Einddatum (optioneel):</label>
+                    <input type="date" id="absence-end-date">
+                </div>
+                 <div class="form-group">
+                    <label for="absence-status">Status:</label>
+                    <select id="absence-status" required>
+                        <option value="In behandeling">In behandeling</option>
+                        <option value="Goedgekeurd">Goedgekeurd</option>
+                        <option value="Afgekeurd">Afgekeurd</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                     <button type="button" class="button secondary modal-cancel-btn" data-modal-id="absence-modal">Annuleren</button>
+                    <button type="submit" class="button">Opslaan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" data-modal-id="confirm-modal">&times;</span>
+            <h2>Bevestiging</h2>
+            <p id="confirm-modal-message">Bent u zeker dat u dit item wilt verwijderen?</p>
+            <div class="modal-actions">
+                <button id="confirm-modal-cancel-btn" class="button secondary" data-modal-id="confirm-modal">Annuleren</button>
+                <button id="confirm-modal-confirm-btn" class="button danger">Bevestigen</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="data.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
