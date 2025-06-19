@@ -480,8 +480,130 @@ button i, .button i { /* For icons in buttons */
     display: block;
 }
 
+.weekplanning-layout {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+#draggable-items-panel {
+    width: 250px; /* Fixed width for the panel */
+    padding: 1rem;
+    background-color: var(--card-background);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    height: fit-content; /* Adjust height to content */
+}
+
+#draggable-items-panel h3, #draggable-items-panel h4 {
+    color: var(--primary-color);
+    margin-bottom: 0.75rem;
+}
+#draggable-items-panel h4 {
+    font-size: 1rem;
+    margin-top: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.3rem;
+}
+
+#draggable-subjects-container, #draggable-teachers-container {
+    max-height: 200px; /* Limit height and allow scroll */
+    overflow-y: auto;
+    padding-right: 0.5rem; /* For scrollbar */
+}
+
+.draggable-item {
+    padding: 0.6rem 0.8rem;
+    background-color: var(--accent-color);
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    cursor: grab;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    font-size: 0.9em;
+}
+
+.draggable-item:hover {
+    background-color: #b0d9e8; /* Slightly darker accent */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.draggable-item.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+#schedule-container-wrapper {
+    flex: 1; /* Takes remaining space */
+}
+
+.schedule-cell.drag-over-active {
+    background-color: var(--playful-yellow) !important; /* Highlight color for drop target */
+    border-style: dashed;
+}
+.placeholder-text {
+    font-style: italic;
+    color: #888;
+    font-size: 0.9em;
+}
+
+.schedule-item .item-content {
+    flex-grow: 1; /* Allows content to take available space */
+}
+
+.remove-schedule-item {
+    font-weight: bold;
+    color: #a00; /* Dark red for remove */
+    cursor: pointer;
+    padding: 0 0.3rem;
+    font-size: 1.2em;
+    line-height: 1;
+    margin-left: 0.5rem;
+    border-radius: 3px;
+}
+
+.remove-schedule-item:hover {
+    color: #f00; /* Brighter red on hover */
+    background-color: rgba(0,0,0,0.1);
+}
+
+/* Conflict Styling */
+.schedule-item.conflict-warning {
+    border: 2px dashed var(--status-conflict) !important;
+    /* background-color: #fff0f0; /* Optional: light red background */
+}
+
+.schedule-item.conflict-warning .teacher .fa-exclamation-triangle {
+    color: var(--status-conflict);
+    margin-left: 4px;
+}
+
+#dashboard-section .kpi-card.conflict .kpi-value,
+#dashboard-section .kpi-card.conflict h3 {
+    color: var(--status-conflict);
+}
+#dashboard-section .kpi-card.conflict {
+    border-left-color: var(--status-conflict);
+    background-color: #fff2f2; /* A very light red for conflicted KPI card */
+}
+
 
 /* Responsive Design */
+@media (max-width: 992px) { /* Adjust breakpoint for planning layout */
+    .weekplanning-layout {
+        flex-direction: column;
+    }
+    #draggable-items-panel {
+        width: 100%; /* Full width on smaller screens */
+        margin-bottom: 1rem;
+        max-height: 250px; /* Limit height when stacked */
+    }
+     #draggable-subjects-container, #draggable-teachers-container {
+        max-height: 150px; /* Adjust scroll height when stacked */
+    }
+}
+
 @media (max-width: 768px) {
     header {
         flex-direction: column;
@@ -575,4 +697,48 @@ button i, .button i { /* For icons in buttons */
 /* This CSS is just for spacing if icons are used, actual icons via Font Awesome or SVGs */
 .icon {
     margin-right: 0.3em;
+}
+
+/* Make sure .placeholder-text is not styled as a flex container */
+.placeholder-text {
+    font-style: italic;
+    color: #888;
+    font-size: 0.9em;
+    /* Removed flex properties that were incorrectly copied here previously */
+}
+/* The schedule-item styling was here, it should be before this placeholder text style or separate */
+/* Ensure schedule-item is defined correctly as it was before this section */
+
+.schedule-item { /* Re-affirming schedule-item style, ensure it's not broken by mistake */
+    background-color: var(--secondary-color); /* Example, might be overridden by subject color */
+    color: white;
+    padding: 0.3rem 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.2rem;
+    font-size: 0.9em;
+    width: 95%;
+    text-align: center;
+    position: relative; /* For positioning the remove button if needed */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+/* Make sure the .schedule-item .item-content and .remove-schedule-item are also correctly placed or reaffirmed if overridden */
+.schedule-item .item-content {
+    flex-grow: 1;
+}
+
+.remove-schedule-item {
+    font-weight: bold;
+    color: #a00;
+    cursor: pointer;
+    padding: 0 0.3rem;
+    font-size: 1.2em;
+    line-height: 1;
+    margin-left: 0.5rem;
+    border-radius: 3px;
+}
+.remove-schedule-item:hover {
+    color: #f00;
+    background-color: rgba(0,0,0,0.1);
 }
