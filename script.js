@@ -35,6 +35,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const absenceEntitySelect = document.getElementById('absence-entity-id');
     const absenceEntityTypeSelect = document.getElementById('absence-entity-type');
     const selectClassSchedule = document.getElementById('select-class-schedule');
+    const draggableSubjectsContainer = document.getElementById('draggable-subjects-container');
+    const draggableTeachersContainer = document.getElementById('draggable-teachers-container');
+
 
     // --- Initial Setup ---
     function init() {
@@ -105,10 +108,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sectionId === 'leerkrachten-section') loadTeachers();
         if (sectionId === 'absenties-section') loadAbsences();
         if (sectionId === 'weekplanning-section') {
+            populateDraggableSubjects();
+            populateDraggableTeachers();
             if(selectClassSchedule.value) displayWeeklySchedule();
             else if (scheduleContainer) scheduleContainer.innerHTML = `<p class="text-center">Selecteer een klas om het rooster te bekijken of te bewerken.</p>`;
         }
     }
+
+    // --- Drag and Drop Global State ---
+    let draggedItemData = null; // To store data of the item being dragged
 
     // --- Modal Handling ---
     function setupModalControls() {
@@ -534,26 +542,347 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         timeSlots.forEach(slot => {
-            grid.innerHTML += `<div class="time-slot">${slot}</div>`; // Time column
+            const timeSlotCell = document.createElement('div');
+            timeSlotCell.className = 'time-slot';
+            timeSlotCell.textContent = slot;
+            grid.appendChild(timeSlotCell);
+
             days.forEach(day => {
+                const cell = document.createElement('div');
+                cell.className = 'schedule-cell';
+                cell.dataset.day = day;
+                cell.dataset.timeslot = slot;
+
+                // Add D&D listeners to the cell
+                cell.addEventListener('dragover', handleDragOver);
+                cell.addEventListener('dragenter', handleDragEnter);
+                cell.addEventListener('dragleave', handleDragLeave);
+                cell.addEventListener('drop', handleDrop);
+
                 const itemsInSlot = scheduleData[day]?.filter(item => item.timeSlot === slot) || [];
-                let cellContent = '';
+                let cellContentHTML = '';
                 itemsInSlot.forEach(item => {
                     const subject = getSubjectById(item.subjectId);
                     const teacher = getTeacherById(item.teacherId);
-                    cellContent += `
-                        <div class="schedule-item" style="background-color: ${subject?.color || '#cccccc'};"
-                             data-tooltip="${item.activity || subject?.name} - ${teacher?.name || 'Geen leerkracht'}">
-                            <span class="subject">${subject?.name || 'N/A'}</span>
-                            <span class="teacher">${teacher?.name.split(' ')[1] || ''}</span>
+                    const isConflict = checkForTeacherConflict(classId, day, slot, item.teacherId);
+
+                    let conflictClass = '';
+                    let conflictTooltip = '';
+                    if (isConflict) {
+                        conflictClass = 'conflict-warning';
+                        conflictTooltip = 'Deze leerkracht heeft een conflict op dit tijdstip! ';
+                    }
+
+                    cellContentHTML += `
+                        <div class="schedule-item ${conflictClass}" style="background-color: ${subject?.color || '#cccccc'};"
+                             data-tooltip="${conflictTooltip}${item.activity || subject?.name} - ${teacher?.name || 'Geen leerkracht'}">
+                            <div class="item-content">
+                                <span class="subject">${subject?.name || 'N/A'}</span>
+                                <span class="teacher">${(teacher?.name ? teacher.name.split(' ')[1] : '') || ''} ${isConflict ? '<i class="fas fa-exclamation-triangle"></i>' : ''}</span>
+                            </div>
+                            <span class="remove-schedule-item" title="Verwijder item"
+                                  data-class-id="${classId}"
+                                  data-day="${day}"
+                                  data-timeslot="${slot}"
+                                  data-subject-id="${item.subjectId}"
+                                  data-teacher-id="${item.teacherId}">&times;</span>
                         </div>`;
                 });
-                grid.innerHTML += `<div class="schedule-cell">${cellContent || '&nbsp;'}</div>`;
+                cell.innerHTML = cellContentHTML || '&nbsp;'; // Set content
+
+                // Add event listeners for remove buttons if content was added
+                if (cellContentHTML) {
+                    cell.querySelectorAll('.remove-schedule-item').forEach(btn => {
+                        btn.addEventListener('click', handleRemoveScheduleItem);
+                    });
+                }
+                grid.appendChild(cell);
             });
         });
 
         scheduleContainer.appendChild(grid);
-        // TODO: Add drag and drop functionality later
+        // setupDragAndDropListeners(); // Listeners are now added directly to cells
+        updateScheduleConflictKPI(); // Update KPI after schedule display
+    }
+
+    function checkForTeacherConflict(currentClassId, day, timeSlot, teacherId) {
+        if (!teacherId) return false; // No teacher, no conflict
+
+        for (const classId in weeklySchedules) {
+            if (classId === currentClassId) continue; // Don't check against the same class item
+
+            if (weeklySchedules[classId][day]) {
+                const conflictingItem = weeklySchedules[classId][day].find(item =>
+                    item.timeSlot === timeSlot && item.teacherId === teacherId
+                );
+                if (conflictingItem) {
+                    return true; // Found a conflict
+                }
+            }
+        }
+        return false; // No conflict found
+    }
+
+    function countAllConflicts() {
+        let conflictCount = 0;
+        const checkedSlots = {}; // To avoid double counting from the perspective of different items in the same slot
+
+        for (const classId in weeklySchedules) {
+            for (const day in weeklySchedules[classId]) {
+                weeklySchedules[classId][day].forEach(item => {
+                    if (item.teacherId) {
+                        // Create a unique key for teacher, day, timeslot to check if already counted
+                        const slotKey = `${item.teacherId}-${day}-${item.timeSlot}`;
+                        if (checkedSlots[slotKey]) return; // Already processed this potential conflict group
+
+                        let occurrences = 0;
+                        for (const otherClassId in weeklySchedules) {
+                            if (weeklySchedules[otherClassId][day]) {
+                                weeklySchedules[otherClassId][day].forEach(otherItem => {
+                                    if (otherItem.timeSlot === item.timeSlot && otherItem.teacherId === item.teacherId) {
+                                        occurrences++;
+                                    }
+                                });
+                            }
+                        }
+                        if (occurrences > 1) {
+                            conflictCount += occurrences; // Count all items involved in this specific conflict
+                            checkedSlots[slotKey] = true;
+                        }
+                    }
+                });
+            }
+        }
+        // The above counts each instance. If KPI should show "number of conflict groups", logic changes.
+        // For now, it counts total items that are in a conflicting state.
+        // A simpler KPI might be "number of slots with conflicts".
+        // Let's refine to count "slots with conflicts"
+        let distinctConflictSlots = 0;
+        const distinctCheckedSlots = {};
+         for (const classIdOuter in weeklySchedules) {
+            for (const dayOuter in weeklySchedules[classIdOuter]) {
+                for (const itemOuter of weeklySchedules[classIdOuter][dayOuter]) {
+                    if (!itemOuter.teacherId) continue;
+
+                    const key = `${itemOuter.day}-${itemOuter.timeSlot}-${itemOuter.teacherId}`;
+                    if (distinctCheckedSlots[key]) continue; // Already processed this teacher+slot
+
+                    let countForThisSlotAndTeacher = 0;
+                    for (const classIdInner in weeklySchedules) {
+                        if (weeklySchedules[classIdInner][dayOuter]) {
+                            for (const itemInner of weeklySchedules[classIdInner][dayOuter]) {
+                                if (itemInner.timeSlot === itemOuter.timeSlot && itemInner.teacherId === itemOuter.teacherId) {
+                                    countForThisSlotAndTeacher++;
+                                }
+                            }
+                        }
+                    }
+                    if (countForThisSlotAndTeacher > 1) {
+                        distinctConflictSlots++;
+                    }
+                    distinctCheckedSlots[key] = true;
+                }
+            }
+        }
+        return distinctConflictSlots;
+    }
+
+
+    function updateScheduleConflictKPI() {
+        const conflictCount = countAllConflicts();
+        const kpiScheduleConflicts = document.getElementById('kpi-schedule-conflicts')?.querySelector('.kpi-value');
+        if (kpiScheduleConflicts) {
+            kpiScheduleConflicts.textContent = conflictCount;
+            if (conflictCount > 0) {
+                kpiScheduleConflicts.parentElement.classList.add('conflict'); // Add styling to KPI card
+            } else {
+                kpiScheduleConflicts.parentElement.classList.remove('conflict');
+            }
+        }
+    }
+
+
+    function handleRemoveScheduleItem(event) {
+        const targetButton = event.currentTarget;
+        const classId = targetButton.dataset.classId;
+        const day = targetButton.dataset.day;
+        const timeSlot = targetButton.dataset.timeslot;
+        // const subjectId = targetButton.dataset.subjectId; // Not strictly needed for removal by slot
+        // const teacherId = targetButton.dataset.teacherId; // Not strictly needed for removal by slot
+
+        if (weeklySchedules[classId] && weeklySchedules[classId][day]) {
+            const itemIndex = weeklySchedules[classId][day].findIndex(item => item.timeSlot === timeSlot);
+
+            if (itemIndex > -1) {
+                weeklySchedules[classId][day].splice(itemIndex, 1);
+                if (weeklySchedules[classId][day].length === 0) {
+                    delete weeklySchedules[classId][day];
+                }
+                if (Object.keys(weeklySchedules[classId]).length === 0) {
+                    delete weeklySchedules[classId];
+                }
+                displayWeeklySchedule();
+                updateScheduleConflictKPI(); // Update KPI after removal
+            } else {
+                console.warn("Could not find item to remove in schedule data:", classId, day, timeSlot);
+            }
+        }
+    }
+
+    // Removed setupDragAndDropListeners as listeners are added dynamically
+
+    function handleDragStart(event, type, id, name) {
+        // event.dataTransfer.setData("text/plain", JSON.stringify({ type, id, name }));
+        // Using a global variable for simplicity in this context, as dataTransfer can be tricky with complex objects or across different parts of the script if not handled carefully.
+        draggedItemData = { type, id, name, target: event.target };
+        event.target.classList.add('dragging');
+        event.dataTransfer.effectAllowed = "copyMove";
+        // Setting a simple text data for firefox compatibility if needed.
+        event.dataTransfer.setData("text", id);
+    }
+
+    function handleDragEnd(event) {
+        if (draggedItemData && draggedItemData.target) {
+            draggedItemData.target.classList.remove('dragging');
+        }
+        draggedItemData = null;
+        document.querySelectorAll('.schedule-cell.drag-over-active').forEach(cell => {
+            cell.classList.remove('drag-over-active');
+        });
+    }
+
+    function handleDragOver(event) {
+        event.preventDefault(); // Necessary to allow dropping
+        event.dataTransfer.dropEffect = "copy"; // or "move"
+    }
+
+    function handleDragEnter(event) {
+        if (event.target.classList.contains('schedule-cell')) {
+            event.target.classList.add('drag-over-active');
+        }
+    }
+
+    function handleDragLeave(event) {
+        if (event.target.classList.contains('schedule-cell')) {
+            event.target.classList.remove('drag-over-active');
+        }
+    }
+
+    function handleDrop(event) {
+        event.preventDefault();
+        const targetCell = event.target.closest('.schedule-cell'); // Ensure we get the cell
+        if (!targetCell || !draggedItemData) {
+            if(draggedItemData) console.warn("Drop target is not a valid cell or no dragged item data.");
+            if (draggedItemData) draggedItemData.target.classList.remove('dragging'); // Clean up if draggedItemData exists
+            draggedItemData = null;
+            return;
+        }
+
+        targetCell.classList.remove('drag-over-active');
+        const classId = selectClassSchedule.value;
+        const day = targetCell.dataset.day;
+        const timeSlot = targetCell.dataset.timeslot;
+
+        if (!classId || !day || !timeSlot) {
+            console.error("Missing data for drop: classId, day, or timeSlot");
+            draggedItemData = null;
+            return;
+        }
+
+        const { type, id: itemId, name: itemName } = draggedItemData; // Destructure from global
+
+        // Update the schedule data
+        if (!weeklySchedules[classId]) weeklySchedules[classId] = {};
+        if (!weeklySchedules[classId][day]) weeklySchedules[classId][day] = [];
+
+        let scheduleEntry = weeklySchedules[classId][day].find(entry => entry.timeSlot === timeSlot);
+
+        if (type === 'subject') {
+            const currentClass = getClassById(classId);
+            let teacherForSubject = currentClass?.teacherId || null; // Default to class teacher
+
+            // If a specific teacher was also part of draggedItemData (future enhancement)
+            // teacherForSubject = draggedItemData.teacherId || teacherForSubject;
+
+            if (scheduleEntry) { // Cell is not empty
+                scheduleEntry.subjectId = itemId;
+                scheduleEntry.activity = itemName; // Update activity with subject name
+                // If the existing teacher was null or not set by D&D, assign class teacher
+                if (!scheduleEntry.teacherId && teacherForSubject) {
+                    scheduleEntry.teacherId = teacherForSubject;
+                }
+                // Otherwise, keep the existing teacher unless a teacher is specifically dragged later
+            } else { // Cell is empty
+                weeklySchedules[classId][day].push({
+                    timeSlot: timeSlot,
+                    subjectId: itemId,
+                    teacherId: teacherForSubject,
+                    activity: itemName
+                });
+            }
+        } else if (type === 'teacher') {
+            const droppedTeacher = getTeacherById(itemId);
+            if (scheduleEntry) { // Cell has an existing item
+                scheduleEntry.teacherId = itemId; // Assign new teacher
+            } else { // Cell is empty, create new entry with this teacher
+                // Find a default/placeholder subject or use teacher's main subject
+                let placeholderSubjectId = subjects.find(s => s.name.toLowerCase().includes("nader te bepalen") || s.name.toLowerCase().includes("studie"))?.id;
+                if (!placeholderSubjectId && subjects.length > 0) placeholderSubjectId = subjects[0].id; // fallback
+
+                weeklySchedules[classId][day].push({
+                    timeSlot: timeSlot,
+                    subjectId: placeholderSubjectId, // Assign a placeholder subject
+                    teacherId: itemId,
+                    activity: droppedTeacher?.subject || "Overleg" // Use teacher's role or default
+                });
+            }
+        }
+
+        draggedItemData = null; // Clear after drop
+        displayWeeklySchedule(); // Refresh the schedule display
+        updateScheduleConflictKPI(); // Update KPI after drop
+    }
+
+    function populateDraggableSubjects() {
+        if (!draggableSubjectsContainer) return;
+        draggableSubjectsContainer.innerHTML = '<h4>Vakken</h4>'; // Reset and add title back
+
+        const placeholder = draggableSubjectsContainer.querySelector('.placeholder-text');
+        if (placeholder) placeholder.remove();
+
+        subjects.forEach(subject => {
+            const item = document.createElement('div');
+            item.className = 'draggable-item';
+            item.draggable = true;
+            item.textContent = subject.name;
+            item.dataset.subjectId = subject.id;
+            item.dataset.type = "subject"; // To identify item type
+
+            item.addEventListener('dragstart', (event) => handleDragStart(event, 'subject', subject.id, subject.name));
+            item.addEventListener('dragend', handleDragEnd);
+            draggableSubjectsContainer.appendChild(item);
+        });
+    }
+
+    // Placeholder for when we add draggable teachers
+    function populateDraggableTeachers() {
+        if (!draggableTeachersContainer) return;
+        draggableTeachersContainer.innerHTML = '<h4>Leerkrachten</h4>'; // Reset and add title back
+
+        const placeholder = draggableTeachersContainer.querySelector('.placeholder-text');
+        if (placeholder) placeholder.remove();
+
+        teachers.forEach(teacher => {
+            const item = document.createElement('div');
+            item.className = 'draggable-item teacher-item'; // Added teacher-item for specific styling if needed
+            item.draggable = true;
+            item.textContent = teacher.name;
+            // Could add tooltip for teacher's main subject: item.dataset.tooltip = teacher.subject;
+
+            item.addEventListener('dragstart', (event) => handleDragStart(event, 'teacher', teacher.id, teacher.name));
+            item.addEventListener('dragend', handleDragEnd);
+            draggableTeachersContainer.appendChild(item);
+        });
     }
 
 

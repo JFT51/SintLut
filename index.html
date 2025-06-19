@@ -95,9 +95,26 @@
                     <!-- Options populated by JS -->
                 </select>
             </div>
-            <div id="schedule-container">
-                <!-- Weekly schedule grid will be here -->
-                <p class="text-center">Selecteer een klas om het rooster te bekijken of te bewerken.</p>
+            <div class="weekplanning-layout">
+                <div id="draggable-items-panel">
+                    <h3>Beschikbare Items</h3>
+                    <div id="draggable-subjects-container">
+                        <h4>Vakken</h4>
+                        <!-- Draggable subjects will be populated here by JS -->
+                        <p class="placeholder-text">Vakken lijst wordt geladen...</p>
+                    </div>
+                    <div id="draggable-teachers-container" class="mt-1">
+                        <h4>Leerkrachten</h4>
+                        <!-- Draggable teachers will be populated here by JS -->
+                        <p class="placeholder-text">Leerkrachten lijst wordt geladen...</p>
+                    </div>
+                </div>
+                <div id="schedule-container-wrapper">
+                    <div id="schedule-container">
+                        <!-- Weekly schedule grid will be here -->
+                        <p class="text-center">Selecteer een klas om het rooster te bekijken of te bewerken.</p>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
